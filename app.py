@@ -798,7 +798,7 @@ if selected_sid:
     if not sel_row.empty:
         sel_row = sel_row.iloc[0]
         if pd.notna(sel_row.get('Latitude')) and pd.notna(sel_row.get('Longitude')):
-            folium.Circle(
+            highlight_circle = folium.Circle(
                 location=[float(sel_row['Latitude']), float(sel_row['Longitude'])],
                 radius=60,
                 color='#EC6B4D',
@@ -807,7 +807,29 @@ if selected_sid:
                 fill_color='#EC6B4D',
                 fill_opacity=0.10,
                 dash_array='6',
-            ).add_to(m)
+            )
+            highlight_circle.add_to(m)
+
+            # Hide the highlight circle while user is actively drawing a polygon/rectangle
+            from jinja2 import Template
+            hide_js = folium.MacroElement()
+            hide_js._template = Template("""
+                {{% macro script(this, kwargs) %}}
+                    (function() {{
+                        var circle = {circle};
+                        {map}.on('draw:drawstart', function() {{
+                            if (circle._map) circle.setStyle({{opacity: 0, fillOpacity: 0}});
+                        }});
+                        {map}.on('draw:drawstop', function() {{
+                            circle.setStyle({{opacity: 1, fillOpacity: 0.10}});
+                        }});
+                    }})();
+                {{% endmacro %}}
+            """.format(
+                circle=highlight_circle.get_name(),
+                map=m.get_name()
+            ))
+            hide_js.add_to(m)
 
 # Initialize Drawing Tool (NEW SHAPES = ORANGE — colors NOT changed per requirement)
 draw = Draw(
