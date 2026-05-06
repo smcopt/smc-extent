@@ -158,7 +158,7 @@ st.markdown(f"""
     }}
 
     section[data-testid="stSidebar"] .stTextInput > div > div > input::placeholder {{
-        color: rgba(245, 243, 232, 0.5) !important;
+        color: {MOONSTONE_BLUE} !important;
     }}
 
     section[data-testid="stSidebar"] .stTextInput > div > div > input:focus {{
@@ -504,6 +504,13 @@ if sorted_site_dict:
         # Update clicked_site_id to match dropdown (in case user changes manually)
         st.session_state["clicked_site_id"] = chosen_site_id
 
+        # Zoom map to the selected site (works for both dropdown and map-click selection)
+        site_row = agency_df[agency_df['Site_ID'] == chosen_site_id].iloc[0]
+        if pd.notna(site_row.get('Latitude')) and pd.notna(site_row.get('Longitude')):
+            st.session_state["map_center"] = [float(site_row['Latitude']), float(site_row['Longitude'])]
+            st.session_state["map_zoom"] = 17
+            st.session_state["force_map_view"] = True
+
         # Show "selected from map" indicator
         if map_selected and chosen_site_id == clicked_sid:
             st.sidebar.markdown(f"""
@@ -735,13 +742,21 @@ if filtered_features:
     fg.add_to(m)
 
 # Add Guide Pins (Blue = Valid Polygon, Red = Missing/Corrupt Polygon — colors NOT changed)
+# Selected site gets highlighted with orange marker and star icon
 # Only show pins for sites in the visible set
+selected_sid = st.session_state.get("clicked_site_id")
 marker_fg = folium.FeatureGroup(name="📍 Site Coordinate Guides")
 for idx, row in agency_df.iterrows():
     if row['Site_ID'] not in visible_site_ids:
         continue
     if pd.notna(row['Latitude']) and pd.notna(row['Longitude']):
-        marker_color = "blue" if row['Site_ID'] in valid_site_ids else "red"
+        is_selected = (row['Site_ID'] == selected_sid)
+        if is_selected:
+            marker_color = "orange"
+            marker_icon = "star"
+        else:
+            marker_color = "blue" if row['Site_ID'] in valid_site_ids else "red"
+            marker_icon = "info-sign"
         tooltip_text = f"<b>{row.get('Site_Name', 'Unknown')}</b><br>ID: {row.get('Site_ID', 'N/A')}"
         popup_text = f"<b>{row.get('Site_Name', 'Unknown')}</b><br>Site_ID: {row.get('Site_ID', 'N/A')}"
 
@@ -749,9 +764,26 @@ for idx, row in agency_df.iterrows():
             location=[row['Latitude'], row['Longitude']],
             tooltip=tooltip_text,
             popup=folium.Popup(popup_text, max_width=250),
-            icon=folium.Icon(color=marker_color, icon="info-sign")
+            icon=folium.Icon(color=marker_color, icon=marker_icon)
         ).add_to(marker_fg)
 marker_fg.add_to(m)
+
+# Add highlight circle around selected site for visual emphasis
+if selected_sid:
+    sel_row = agency_df[agency_df['Site_ID'] == selected_sid]
+    if not sel_row.empty:
+        sel_row = sel_row.iloc[0]
+        if pd.notna(sel_row.get('Latitude')) and pd.notna(sel_row.get('Longitude')):
+            folium.Circle(
+                location=[float(sel_row['Latitude']), float(sel_row['Longitude'])],
+                radius=60,
+                color='#EC6B4D',
+                weight=3,
+                fill=True,
+                fill_color='#EC6B4D',
+                fill_opacity=0.10,
+                dash_array='6',
+            ).add_to(m)
 
 # Initialize Drawing Tool (NEW SHAPES = ORANGE — colors NOT changed per requirement)
 draw = Draw(
@@ -845,7 +877,7 @@ if clicked_id and clicked_id != st.session_state.get("clicked_site_id"):
                 elif isinstance(last_clicked, (list, tuple)) and len(last_clicked) >= 2:
                     st.session_state["map_center"] = list(last_clicked)
 
-        st.session_state["map_zoom"] = 15
+        st.session_state["map_zoom"] = 17
         st.session_state["force_map_view"] = True
         st.rerun()
 
