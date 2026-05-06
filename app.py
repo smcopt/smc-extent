@@ -479,6 +479,10 @@ if sorted_site_dict:
         st.session_state["clicked_site_id"] = None
         st.session_state["prev_selected_site"] = None
         st.session_state["_prev_filter_mode"] = filter_mode
+        # Reset map to full overview extent
+        st.session_state["map_center"] = [31.4, 34.4]
+        st.session_state["map_zoom"] = 10
+        st.session_state["force_map_view"] = True
 
     # Search filter
     search_query = st.sidebar.text_input("🔍 Search Sites:", placeholder="Type site name or ID...", key="site_search")
@@ -520,10 +524,9 @@ if sorted_site_dict:
             # Update clicked_site_id to match dropdown
             st.session_state["clicked_site_id"] = chosen_site_id
 
-            # Zoom to site only when user actively changes selection
-            # (not on first load / filter change where prev_selected_site is None)
+            # Zoom to site when selection changes (including first pick after load/filter change)
             prev_sel = st.session_state.get("prev_selected_site")
-            if prev_sel is not None and chosen_site_id != prev_sel:
+            if chosen_site_id != prev_sel:
                 site_row = agency_df[agency_df['Site_ID'] == chosen_site_id].iloc[0]
                 if pd.notna(site_row.get('Latitude')) and pd.notna(site_row.get('Longitude')):
                     st.session_state["map_center"] = [float(site_row['Latitude']), float(site_row['Longitude'])]
