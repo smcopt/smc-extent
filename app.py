@@ -50,6 +50,8 @@ if "map_zoom" not in st.session_state:
     st.session_state["map_zoom"] = 10
 if "force_map_view" not in st.session_state:
     st.session_state["force_map_view"] = False
+if "prev_selected_site" not in st.session_state:
+    st.session_state["prev_selected_site"] = None
 
 # ==========================================
 # CUSTOM CSS — CCCM CLUSTER BRANDING
@@ -504,12 +506,16 @@ if sorted_site_dict:
         # Update clicked_site_id to match dropdown (in case user changes manually)
         st.session_state["clicked_site_id"] = chosen_site_id
 
-        # Zoom map to the selected site (works for both dropdown and map-click selection)
-        site_row = agency_df[agency_df['Site_ID'] == chosen_site_id].iloc[0]
-        if pd.notna(site_row.get('Latitude')) and pd.notna(site_row.get('Longitude')):
-            st.session_state["map_center"] = [float(site_row['Latitude']), float(site_row['Longitude'])]
-            st.session_state["map_zoom"] = 17
-            st.session_state["force_map_view"] = True
+        # Zoom map to the selected site — but only when the user actively changes selection
+        # (not on first page load where prev_selected_site is None)
+        prev_sel = st.session_state.get("prev_selected_site")
+        if prev_sel is not None and chosen_site_id != prev_sel:
+            site_row = agency_df[agency_df['Site_ID'] == chosen_site_id].iloc[0]
+            if pd.notna(site_row.get('Latitude')) and pd.notna(site_row.get('Longitude')):
+                st.session_state["map_center"] = [float(site_row['Latitude']), float(site_row['Longitude'])]
+                st.session_state["map_zoom"] = 17
+                st.session_state["force_map_view"] = True
+        st.session_state["prev_selected_site"] = chosen_site_id
 
         # Show "selected from map" indicator
         if map_selected and chosen_site_id == clicked_sid:
