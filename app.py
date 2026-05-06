@@ -52,6 +52,8 @@ if "force_map_view" not in st.session_state:
     st.session_state["force_map_view"] = False
 if "prev_selected_site" not in st.session_state:
     st.session_state["prev_selected_site"] = None
+if "prev_filter_mode" not in st.session_state:
+    st.session_state["prev_filter_mode"] = "All Sites"
 
 # ==========================================
 # CUSTOM CSS — CCCM CLUSTER BRANDING
@@ -466,6 +468,12 @@ if sorted_site_dict:
         key="filter_mode"
     )
 
+    # Reset site selection when filter mode changes
+    if filter_mode != st.session_state.get("prev_filter_mode"):
+        st.session_state["clicked_site_id"] = None
+        st.session_state["prev_selected_site"] = None
+        st.session_state["prev_filter_mode"] = filter_mode
+
     # Apply filter mode
     if filter_mode == "Unmapped Only":
         mode_filtered = {k: v for k, v in sorted_site_dict.items() if not site_status_map.get(k, False)}
@@ -484,7 +492,8 @@ if sorted_site_dict:
 
     if filtered_sites:
         # Determine default index from map click
-        site_keys = list(filtered_sites.keys())
+        PLACEHOLDER = "— Select a site —"
+        site_keys = [PLACEHOLDER] + list(filtered_sites.keys())
         default_idx = 0
         clicked_sid = st.session_state.get("clicked_site_id")
         map_selected = False
@@ -492,7 +501,7 @@ if sorted_site_dict:
             # Find the display key that matches the clicked Site_ID
             for i, (display_key, sid) in enumerate(filtered_sites.items()):
                 if sid == clicked_sid:
-                    default_idx = i
+                    default_idx = i + 1  # +1 because of placeholder at index 0
                     map_selected = True
                     break
 
@@ -501,24 +510,30 @@ if sorted_site_dict:
             site_keys,
             index=default_idx
         )
-        chosen_site_id = filtered_sites[chosen_display]
 
-        # Update clicked_site_id to match dropdown (in case user changes manually)
-        st.session_state["clicked_site_id"] = chosen_site_id
+        if chosen_display == PLACEHOLDER:
+            chosen_site_id = None
+            st.session_state["clicked_site_id"] = None
+            st.session_state["prev_selected_site"] = None
+        else:
+            chosen_site_id = filtered_sites[chosen_display]
 
-        # Zoom map to the selected site — but only when the user actively changes selection
-        # (not on first page load where prev_selected_site is None)
-        prev_sel = st.session_state.get("prev_selected_site")
-        if prev_sel is not None and chosen_site_id != prev_sel:
-            site_row = agency_df[agency_df['Site_ID'] == chosen_site_id].iloc[0]
-            if pd.notna(site_row.get('Latitude')) and pd.notna(site_row.get('Longitude')):
-                st.session_state["map_center"] = [float(site_row['Latitude']), float(site_row['Longitude'])]
-                st.session_state["map_zoom"] = 17
-                st.session_state["force_map_view"] = True
-        st.session_state["prev_selected_site"] = chosen_site_id
+            # Update clicked_site_id to match dropdown (in case user changes manually)
+            st.session_state["clicked_site_id"] = chosen_site_id
+
+            # Zoom map to the selected site — but only when the user actively changes selection
+            # (not on first page load where prev_selected_site is None)
+            prev_sel = st.session_state.get("prev_selected_site")
+            if prev_sel is not None and chosen_site_id != prev_sel:
+                site_row = agency_df[agency_df['Site_ID'] == chosen_site_id].iloc[0]
+                if pd.notna(site_row.get('Latitude')) and pd.notna(site_row.get('Longitude')):
+                    st.session_state["map_center"] = [float(site_row['Latitude']), float(site_row['Longitude'])]
+                    st.session_state["map_zoom"] = 17
+                    st.session_state["force_map_view"] = True
+            st.session_state["prev_selected_site"] = chosen_site_id
 
         # Show "selected from map" indicator
-        if map_selected and chosen_site_id == clicked_sid:
+        if chosen_site_id and map_selected and chosen_site_id == clicked_sid:
             st.sidebar.markdown(f"""
             <div style="
                 background: rgba(111, 197, 188, 0.15);
@@ -535,44 +550,45 @@ if sorted_site_dict:
             """, unsafe_allow_html=True)
 
         # ── Status indicator for selected site ──
-        is_mapped = site_status_map.get(chosen_display, False)
-        if is_mapped:
-            st.sidebar.markdown(f"""
-            <div style="
-                background: rgba(187, 223, 187, 0.15);
-                border: 1px solid rgba(187, 223, 187, 0.4);
-                border-left: 3px solid {MOSS_GREEN};
-                border-radius: 6px;
-                padding: 0.5rem 0.7rem;
-                margin: 0.4rem 0 0.2rem 0;
-                font-size: 0.8rem;
-            ">
-                <span style="color:{MOSS_GREEN};">●</span>
-                <b style="color:white;">Already mapped</b>
-                <span style="color:rgba(245,243,232,0.7); display:block; font-size:0.73rem; margin-top:0.15rem;">
-                    Drawing a new polygon will <b style="color:{BURNT_SIENNA};">replace</b> the existing boundary.
-                    The old extent is backed up automatically before overwriting.
-                </span>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.sidebar.markdown(f"""
-            <div style="
-                background: rgba(236, 107, 77, 0.12);
-                border: 1px solid rgba(236, 107, 77, 0.3);
-                border-left: 3px solid {BURNT_SIENNA};
-                border-radius: 6px;
-                padding: 0.5rem 0.7rem;
-                margin: 0.4rem 0 0.2rem 0;
-                font-size: 0.8rem;
-            ">
-                <span style="color:{BURNT_SIENNA};">●</span>
-                <b style="color:white;">No extent yet</b>
-                <span style="color:rgba(245,243,232,0.7); display:block; font-size:0.73rem; margin-top:0.15rem;">
-                    Use the red pin on the map as a guide to draw this site's boundary.
-                </span>
-            </div>
-            """, unsafe_allow_html=True)
+        if chosen_site_id:
+            is_mapped = site_status_map.get(chosen_display, False)
+            if is_mapped:
+                st.sidebar.markdown(f"""
+                <div style="
+                    background: rgba(187, 223, 187, 0.15);
+                    border: 1px solid rgba(187, 223, 187, 0.4);
+                    border-left: 3px solid {MOSS_GREEN};
+                    border-radius: 6px;
+                    padding: 0.5rem 0.7rem;
+                    margin: 0.4rem 0 0.2rem 0;
+                    font-size: 0.8rem;
+                ">
+                    <span style="color:{MOSS_GREEN};">●</span>
+                    <b style="color:white;">Already mapped</b>
+                    <span style="color:rgba(245,243,232,0.7); display:block; font-size:0.73rem; margin-top:0.15rem;">
+                        Drawing a new polygon will <b style="color:{BURNT_SIENNA};">replace</b> the existing boundary.
+                        The old extent is backed up automatically before overwriting.
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                st.sidebar.markdown(f"""
+                <div style="
+                    background: rgba(236, 107, 77, 0.12);
+                    border: 1px solid rgba(236, 107, 77, 0.3);
+                    border-left: 3px solid {BURNT_SIENNA};
+                    border-radius: 6px;
+                    padding: 0.5rem 0.7rem;
+                    margin: 0.4rem 0 0.2rem 0;
+                    font-size: 0.8rem;
+                ">
+                    <span style="color:{BURNT_SIENNA};">●</span>
+                    <b style="color:white;">No extent yet</b>
+                    <span style="color:rgba(245,243,232,0.7); display:block; font-size:0.73rem; margin-top:0.15rem;">
+                        Use the red pin on the map as a guide to draw this site's boundary.
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
     else:
         st.sidebar.warning(f"No sites matching \"{search_query}\"" if search_query else f"No {filter_mode.lower()} sites.")
         chosen_site_id = None
