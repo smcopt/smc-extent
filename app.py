@@ -52,8 +52,6 @@ if "force_map_view" not in st.session_state:
     st.session_state["force_map_view"] = False
 if "prev_selected_site" not in st.session_state:
     st.session_state["prev_selected_site"] = None
-if "prev_filter_mode" not in st.session_state:
-    st.session_state["prev_filter_mode"] = "All Sites"
 
 # ==========================================
 # CUSTOM CSS — CCCM CLUSTER BRANDING
@@ -468,12 +466,6 @@ if sorted_site_dict:
         key="filter_mode"
     )
 
-    # Reset site selection when filter mode changes
-    if filter_mode != st.session_state.get("prev_filter_mode"):
-        st.session_state["clicked_site_id"] = None
-        st.session_state["prev_selected_site"] = None
-        st.session_state["prev_filter_mode"] = filter_mode
-
     # Apply filter mode
     if filter_mode == "Unmapped Only":
         mode_filtered = {k: v for k, v in sorted_site_dict.items() if not site_status_map.get(k, False)}
@@ -481,6 +473,12 @@ if sorted_site_dict:
         mode_filtered = {k: v for k, v in sorted_site_dict.items() if site_status_map.get(k, False)}
     else:
         mode_filtered = sorted_site_dict
+
+    # Reset site selection when filter mode changes so user sees the full extent first
+    if filter_mode != st.session_state.get("_prev_filter_mode"):
+        st.session_state["clicked_site_id"] = None
+        st.session_state["prev_selected_site"] = None
+        st.session_state["_prev_filter_mode"] = filter_mode
 
     # Search filter
     search_query = st.sidebar.text_input("🔍 Search Sites:", placeholder="Type site name or ID...", key="site_search")
@@ -491,17 +489,18 @@ if sorted_site_dict:
         filtered_sites = mode_filtered
 
     if filtered_sites:
-        # Determine default index from map click
+        # Build option list with a placeholder at the top
         PLACEHOLDER = "— Select a site —"
         site_keys = [PLACEHOLDER] + list(filtered_sites.keys())
+
+        # Determine default index from map click (or placeholder if nothing selected)
         default_idx = 0
         clicked_sid = st.session_state.get("clicked_site_id")
         map_selected = False
         if clicked_sid:
-            # Find the display key that matches the clicked Site_ID
             for i, (display_key, sid) in enumerate(filtered_sites.items()):
                 if sid == clicked_sid:
-                    default_idx = i + 1  # +1 because of placeholder at index 0
+                    default_idx = i + 1  # +1 because placeholder is at index 0
                     map_selected = True
                     break
 
@@ -518,11 +517,11 @@ if sorted_site_dict:
         else:
             chosen_site_id = filtered_sites[chosen_display]
 
-            # Update clicked_site_id to match dropdown (in case user changes manually)
+            # Update clicked_site_id to match dropdown
             st.session_state["clicked_site_id"] = chosen_site_id
 
-            # Zoom map to the selected site — but only when the user actively changes selection
-            # (not on first page load where prev_selected_site is None)
+            # Zoom to site only when user actively changes selection
+            # (not on first load / filter change where prev_selected_site is None)
             prev_sel = st.session_state.get("prev_selected_site")
             if prev_sel is not None and chosen_site_id != prev_sel:
                 site_row = agency_df[agency_df['Site_ID'] == chosen_site_id].iloc[0]
