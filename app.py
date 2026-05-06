@@ -811,25 +811,23 @@ if selected_sid:
             highlight_circle.add_to(m)
 
             # Hide the highlight circle while user is actively drawing a polygon/rectangle
-            from jinja2 import Template
-            hide_js = folium.MacroElement()
-            hide_js._template = Template("""
-                {{% macro script(this, kwargs) %}}
-                    (function() {{
-                        var circle = {circle};
-                        {map}.on('draw:drawstart', function() {{
-                            if (circle._map) circle.setStyle({{opacity: 0, fillOpacity: 0}});
+            circle_var = highlight_circle.get_name()
+            map_var = m.get_name()
+            hide_circle_script = f"""
+            <script>
+                document.addEventListener('DOMContentLoaded', function() {{
+                    try {{
+                        {map_var}.on('draw:drawstart', function() {{
+                            {circle_var}.setStyle({{opacity: 0, fillOpacity: 0}});
                         }});
-                        {map}.on('draw:drawstop', function() {{
-                            circle.setStyle({{opacity: 1, fillOpacity: 0.10}});
+                        {map_var}.on('draw:drawstop', function() {{
+                            {circle_var}.setStyle({{opacity: 1, fillOpacity: 0.10}});
                         }});
-                    }})();
-                {{% endmacro %}}
-            """.format(
-                circle=highlight_circle.get_name(),
-                map=m.get_name()
-            ))
-            hide_js.add_to(m)
+                    }} catch(e) {{}}
+                }});
+            </script>
+            """
+            m.get_root().html.add_child(folium.Element(hide_circle_script))
 
 # Initialize Drawing Tool (NEW SHAPES = ORANGE — colors NOT changed per requirement)
 draw = Draw(
