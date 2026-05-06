@@ -792,43 +792,6 @@ for idx, row in agency_df.iterrows():
         ).add_to(marker_fg)
 marker_fg.add_to(m)
 
-# Add highlight circle around selected site for visual emphasis
-if selected_sid:
-    sel_row = agency_df[agency_df['Site_ID'] == selected_sid]
-    if not sel_row.empty:
-        sel_row = sel_row.iloc[0]
-        if pd.notna(sel_row.get('Latitude')) and pd.notna(sel_row.get('Longitude')):
-            highlight_circle = folium.Circle(
-                location=[float(sel_row['Latitude']), float(sel_row['Longitude'])],
-                radius=60,
-                color='#EC6B4D',
-                weight=3,
-                fill=True,
-                fill_color='#EC6B4D',
-                fill_opacity=0.10,
-                dash_array='6',
-            )
-            highlight_circle.add_to(m)
-
-            # Hide the highlight circle while user is actively drawing a polygon/rectangle
-            circle_var = highlight_circle.get_name()
-            map_var = m.get_name()
-            hide_circle_script = f"""
-            <script>
-                document.addEventListener('DOMContentLoaded', function() {{
-                    try {{
-                        {map_var}.on('draw:drawstart', function() {{
-                            {circle_var}.setStyle({{opacity: 0, fillOpacity: 0}});
-                        }});
-                        {map_var}.on('draw:drawstop', function() {{
-                            {circle_var}.setStyle({{opacity: 1, fillOpacity: 0.10}});
-                        }});
-                    }} catch(e) {{}}
-                }});
-            </script>
-            """
-            m.get_root().html.add_child(folium.Element(hide_circle_script))
-
 # Initialize Drawing Tool (NEW SHAPES = ORANGE — colors NOT changed per requirement)
 draw = Draw(
     export=False,
