@@ -492,6 +492,18 @@ if sorted_site_dict:
     else:
         filtered_sites = mode_filtered
 
+    # Auto-select when search narrows to exactly one site
+    if search_query and len(filtered_sites) == 1:
+        only_key, only_sid = next(iter(filtered_sites.items()))
+        if st.session_state.get("clicked_site_id") != only_sid:
+            st.session_state["clicked_site_id"] = only_sid
+            site_row = agency_df[agency_df['Site_ID'] == only_sid].iloc[0]
+            if pd.notna(site_row.get('Latitude')) and pd.notna(site_row.get('Longitude')):
+                st.session_state["map_center"] = [float(site_row['Latitude']), float(site_row['Longitude'])]
+                st.session_state["map_zoom"] = 17
+                st.session_state["force_map_view"] = True
+            st.rerun()
+
     if filtered_sites:
         # Build option list with a placeholder at the top
         PLACEHOLDER = "— Select a site —"
