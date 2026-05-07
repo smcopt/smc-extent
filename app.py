@@ -84,7 +84,7 @@ st.markdown(f"""
         padding-right: 1.5rem;
     }}
 
-    /* ── Sidebar branding ── */
+    /* ──  branding ── */
     section[data-testid="stSidebar"] {{
         background-color: {BLUE_SAPPHIRE};
         border-right: 3px solid {BURNT_SIENNA};
@@ -146,7 +146,7 @@ st.markdown(f"""
 
     /* Sidebar search input */
     section[data-testid="stSidebar"] .stTextInput label {{
-        color: {ECRU_WHITE} !important;
+        color: {BURNT_SIENNA} !important;
         font-weight: 600;
         font-size: 0.85rem;
     }}
@@ -155,7 +155,7 @@ st.markdown(f"""
         background-color: rgba(255,255,255,0.1);
         border: 1px solid rgba(111, 197, 188, 0.4);
         border-radius: 6px;
-        color: {ECRU_WHITE} !important;
+        color: {BURNT_SIENNA} !important;
         font-family: 'Inter', sans-serif;
     }}
 
